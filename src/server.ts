@@ -35,7 +35,7 @@ app.get("/", (req, res) => {
 // GET /songs
 app.get("/songs", async (req, res) => {
   const songQuery =
-    "SELECT c.id, userid, title, youtube_url, spotify_url, u.username, sg.genre_id, g.genre FROM content AS c JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id JOIN genres AS g ON sg.genre_id = g.id";
+    "SELECT c.id, userid, title, artist, youtube_url, spotify_url, u.username, sg.genre_id, g.genre FROM content AS c LEFT JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id  LEFT JOIN genres AS g ON sg.genre_id = g.id";
 
   const songsResult = await client.query(songQuery);
   console.log(songsResult);
@@ -151,13 +151,45 @@ app.post("/favourites", async (req, res) => {
 //GET /favourites for displaying
 app.get("/favourites/:id", async (req, res) => {
   const queryText =
-    "SELECT c.id, userid, title, youtube_url, spotify_url, u.username, sg.genre_id, g.genre, f.favourited_user FROM content AS c JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id JOIN genres AS g ON sg.genre_id = g.id JOIN favourites as f ON f.song_id = c.id WHERE f.favourited_user = $1";
+    "SELECT c.id, userid, title, youtube_url, spotify_url, u.username, sg.genre_id, g.genre, f.favourited_user FROM content AS c LEFT JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id LEFT JOIN genres AS g ON sg.genre_id = g.id JOIN favourites as f ON f.song_id = c.id WHERE f.favourited_user = $1";
   const values = [req.params.id];
 
   const songsResult = await client.query(queryText, values);
   const mergedSongs = mergeSongGenres(songsResult);
 
   res.status(200).json(mergedSongs);
+});
+
+app.delete("/favourites/:id", async (req, res) => {
+  const body = req.body;
+  const queryText =
+    "DELETE FROM favourites where song_id = $1 and favourited_user = $2 RETURNING *";
+  const values = [req.params.id, body.activeUser.id];
+
+  const result = await client.query(queryText, values);
+
+  res.status(200).json(result.rows[0]);
+});
+
+//POST comments
+app.post("/comments", async (req, res) => {
+  const body = req.body;
+  const queryText =
+    "INSERT INTO comments (user_id, comment, created_at, song_id) VALUES ($1, $2, $3, $4) RETURNING *";
+
+  const values = [body.userid, body.commentText, new Date(), body.song_id];
+  const result = await client.query(queryText, values);
+
+  res.status(200).json(result.rows[0]);
+});
+
+//GET comments
+app.get("/comments", async (req, res) => {
+  const queryText =
+    "SELECT co.user_id, co.comment, co.created_at, co.song_id, u.username FROM comments as co JOIN users as u ON u.id = co.user_id";
+  const commentsList = await client.query(queryText);
+
+  res.status(200).json(commentsList);
 });
 
 app.listen(PORT_NUMBER, () => {
