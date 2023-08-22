@@ -81,7 +81,7 @@ app.post("/songs", async (req, res) => {
       postData.artist,
       postData.spotify_url,
       postData.userid,
-      Date.now(),
+      new Date(),
     ];
   } else if (postData.spotify_url === "") {
     queryText =
@@ -91,7 +91,7 @@ app.post("/songs", async (req, res) => {
       postData.artist,
       postData.youtube_url,
       postData.userid,
-      Date.now(),
+      new Date(),
     ];
   }
 
