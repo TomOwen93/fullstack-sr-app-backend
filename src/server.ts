@@ -35,7 +35,7 @@ app.get("/", (req, res) => {
 // GET /songs
 app.get("/songs", async (req, res) => {
   const songQuery =
-    "SELECT c.id, userid, title, artist, youtube_url, spotify_url, u.username, sg.genre_id, g.genre FROM content AS c LEFT JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id  LEFT JOIN genres AS g ON sg.genre_id = g.id";
+    "SELECT c.id, userid, title, artist, youtube_url, spotify_url, created_at, u.username, sg.genre_id, g.genre FROM content AS c LEFT JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id  LEFT JOIN genres AS g ON sg.genre_id = g.id";
 
   const songsResult = await client.query(songQuery);
   console.log(songsResult);
@@ -75,21 +75,23 @@ app.post("/songs", async (req, res) => {
   console.log(postData);
   if (postData.youtube_url === "") {
     queryText =
-      "INSERT INTO content (title, artist, spotify_url, userid) values($1, $2, $3, $4) RETURNING *";
+      "INSERT INTO content (title, artist, spotify_url, userid, created_at) values($1, $2, $3, $4, $5) RETURNING *";
     values = [
       postData.title,
       postData.artist,
       postData.spotify_url,
       postData.userid,
+      Date.now(),
     ];
   } else if (postData.spotify_url === "") {
     queryText =
-      "INSERT INTO content (title, artist, youtube_url, userid) values($1, $2, $3, $4) RETURNING *";
+      "INSERT INTO content (title, artist, youtube_url, userid, created_at) values($1, $2, $3, $4, $5) RETURNING *";
     values = [
       postData.title,
       postData.artist,
       postData.youtube_url,
       postData.userid,
+      Date.now(),
     ];
   }
 
@@ -151,7 +153,7 @@ app.post("/favourites", async (req, res) => {
 //GET /favourites for displaying
 app.get("/favourites/:id", async (req, res) => {
   const queryText =
-    "SELECT c.id, userid, title, youtube_url, spotify_url, u.username, sg.genre_id, g.genre, f.favourited_user FROM content AS c LEFT JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id LEFT JOIN genres AS g ON sg.genre_id = g.id JOIN favourites as f ON f.song_id = c.id WHERE f.favourited_user = $1";
+    "SELECT c.id, userid, title, youtube_url, spotify_url, created_at, u.username, sg.genre_id, g.genre, f.favourited_user FROM content AS c LEFT JOIN songs_genres AS sg ON sg.song_id = c.id JOIN users as u ON c.userid = u.id LEFT JOIN genres AS g ON sg.genre_id = g.id JOIN favourites as f ON f.song_id = c.id WHERE f.favourited_user = $1";
   const values = [req.params.id];
 
   const songsResult = await client.query(queryText, values);
@@ -165,6 +167,26 @@ app.delete("/favourites/:id", async (req, res) => {
   const queryText =
     "DELETE FROM favourites where song_id = $1 and favourited_user = $2 RETURNING *";
   const values = [req.params.id, body.activeUser.id];
+
+  const result = await client.query(queryText, values);
+
+  res.status(200).json(result.rows[0]);
+});
+
+//DELETE songs_genres
+app.delete("/songs_genres/:id", async (req, res) => {
+  const queryText = "DELETE FROM songs_genres where song_id = $1 RETURNING *";
+  const values = [req.params.id];
+
+  const result = await client.query(queryText, values);
+
+  res.status(200).json(result.rows[0]);
+});
+
+//DELETE songs
+app.delete("/content/:id", async (req, res) => {
+  const queryText = "DELETE FROM content where id = $1 RETURNING *";
+  const values = [req.params.id];
 
   const result = await client.query(queryText, values);
 
